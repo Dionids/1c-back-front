@@ -3,13 +3,26 @@
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 
+interface OsvAccountRow {
+    account_code: string;
+    account_name: string;
+    rent_object: string;
+    opening_debit: number | null;
+    opening_credit: number | null;
+    turnover_debit: number | null;
+    turnover_credit: number | null;
+    closing_debit: number | null;
+    closing_credit: number | null;
+}
+
 export default function OSVAccountsPage() {
     const [objects, setObjects] = useState<string[]>([]);
     const [dateFrom, setDateFrom] = useState(dayjs().startOf('year').format('YYYY-MM-DD'));
     const [dateTo, setDateTo] = useState(dayjs().format('YYYY-MM-DD'));
     const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
-    const [rows, setRows] = useState<any[]>([]);
+    const [rows, setRows] = useState<OsvAccountRow[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetch('/api/rental-objects')
@@ -25,18 +38,29 @@ export default function OSVAccountsPage() {
 
     async function handleSubmit() {
         setLoading(true);
-        const res = await fetch('/api/reports/osv-accounts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                date_from: dayjs(dateFrom).toISOString(),
-                date_to: dayjs(dateTo).toISOString(),
-                selected_rent_objects: selectedObjects.length > 0 ? selectedObjects : null,
-            }),
-        });
-        const data = await res.json();
-        setRows(data.rows ?? []);
-        setLoading(false);
+        setError(null);
+        try {
+            const res = await fetch('/api/reports/osv-accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date_from: dayjs(dateFrom).toISOString(),
+                    date_to: dayjs(dateTo).toISOString(),
+                    selected_rent_objects: selectedObjects.length > 0 ? selectedObjects : null,
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error ?? 'Ошибка сервера');
+            }
+            const data = await res.json();
+            setRows(data.rows ?? []);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Неизвестная ошибка');
+            setRows([]);
+        } finally {
+            setLoading(false);
+        }
     }
 
     return (
@@ -76,6 +100,12 @@ export default function OSVAccountsPage() {
                     </div>
                 </div>
             </div>
+
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+                    {error}
+                </div>
+            )}
 
             {rows.length > 0 && (
                 <div className="bg-white rounded-lg border overflow-x-auto">

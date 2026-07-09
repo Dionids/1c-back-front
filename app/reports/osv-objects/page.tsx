@@ -3,13 +3,26 @@
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 
+interface OsvObjectRow {
+    rent_object: string;
+    opening_assets: number | null;
+    opening_liabilities: number | null;
+    change_assets_debit: number | null;
+    change_assets_credit: number | null;
+    change_liabilities_debit: number | null;
+    change_liabilities_credit: number | null;
+    closing_assets: number | null;
+    closing_liabilities: number | null;
+}
+
 export default function OSVObjectsPage() {
     const [objects, setObjects] = useState<string[]>([]);
     const [dateFrom, setDateFrom] = useState(dayjs().startOf('year').format('YYYY-MM-DD'));
     const [dateTo, setDateTo] = useState(dayjs().format('YYYY-MM-DD'));
     const [selectedObject, setSelectedObject] = useState<string>('');
-    const [rows, setRows] = useState<any[]>([]);
+    const [rows, setRows] = useState<OsvObjectRow[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetch('/api/rental-objects')
@@ -19,18 +32,29 @@ export default function OSVObjectsPage() {
 
     async function handleSubmit() {
         setLoading(true);
-        const res = await fetch('/api/reports/osv-objects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                date_from: dayjs(dateFrom).toISOString(),
-                date_to: dayjs(dateTo).toISOString(),
-                selected_rent_object: selectedObject || null,
-            }),
-        });
-        const data = await res.json();
-        setRows(data.rows ?? []);
-        setLoading(false);
+        setError(null);
+        try {
+            const res = await fetch('/api/reports/osv-objects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date_from: dayjs(dateFrom).toISOString(),
+                    date_to: dayjs(dateTo).toISOString(),
+                    selected_rent_object: selectedObject || null,
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error ?? 'Ошибка сервера');
+            }
+            const data = await res.json();
+            setRows(data.rows ?? []);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Неизвестная ошибка');
+            setRows([]);
+        } finally {
+            setLoading(false);
+        }
     }
 
     return (
@@ -61,6 +85,12 @@ export default function OSVObjectsPage() {
                     {loading ? 'Загрузка...' : 'Сформировать'}
                 </button>
             </div>
+
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+                    {error}
+                </div>
+            )}
 
             {rows.length > 0 && (
                 <div className="bg-white rounded-lg border overflow-x-auto">

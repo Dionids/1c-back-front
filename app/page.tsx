@@ -13,7 +13,7 @@ export default function Home() {
                     <h2 className="font-semibold text-gray-800">ОСВ по счетам</h2>
                     <p className="text-gray-500 text-sm mt-1">Оборотно-сальдовая ведомость по счетам</p>
                 </a>
-                <a href="/reports/calculation/page"
+                <a href="/reports/calculation"
                    className="block p-6 bg-white rounded-lg border hover:border-blue-500 transition-colors">
                     <h2 className="font-semibold text-gray-800">Расчёт активов и обязательств</h2>
                     <p className="text-gray-500 text-sm mt-1">Детальный расчёт по договорам аренды</p>

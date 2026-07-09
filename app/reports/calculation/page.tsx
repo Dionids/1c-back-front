@@ -3,11 +3,24 @@
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 
+interface CalculationRow {
+    rent_object: string;
+    document: string;
+    period: string;
+    payment: number | null;
+    liability: number | null;
+    asset: number | null;
+    interest_expense: number | null;
+    depreciation_expense: number | null;
+    accumulated_depreciation: number | null;
+}
+
 export default function CalculationPage() {
     const [objects, setObjects] = useState<string[]>([]);
     const [selectedObject, setSelectedObject] = useState<string>('');
-    const [rows, setRows] = useState<any[]>([]);
+    const [rows, setRows] = useState<CalculationRow[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetch('/api/rental-objects')
@@ -17,16 +30,32 @@ export default function CalculationPage() {
 
     async function handleSubmit() {
         setLoading(true);
-        const res = await fetch('/api/reports/calculation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                selected_rent_object: selectedObject || null,
-            }),
-        });
-        const data = await res.json();
-        setRows(data.rows ?? []);
-        setLoading(false);
+        setError(null);
+        try {
+            const res = await fetch('/api/reports/calculation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    selected_rent_object: selectedObject || null,
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error ?? 'Ошибка сервера');
+            }
+            const data = await res.json();
+            setRows(data.rows ?? []);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Неизвестная ошибка');
+            setRows([]);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function formatPeriod(value: string): string {
+        const d = dayjs(value);
+        return d.isValid() ? d.format('DD.MM.YYYY') : value;
     }
 
     return (
@@ -47,6 +76,12 @@ export default function CalculationPage() {
                     {loading ? 'Загрузка...' : 'Сформировать'}
                 </button>
             </div>
+
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+                    {error}
+                </div>
+            )}
 
             {rows.length > 0 && (
                 <div className="bg-white rounded-lg border overflow-x-auto">
@@ -69,7 +104,7 @@ export default function CalculationPage() {
                                 <tr key={i} className="border-b hover:bg-gray-50">
                                     <td className="px-3 py-2">{row.rent_object}</td>
                                     <td className="px-3 py-2">{row.document}</td>
-                                    <td className="px-3 py-2">{dayjs(row.period).format('DD.MM.YYYY')}</td>
+                                    <td className="px-3 py-2">{formatPeriod(row.period)}</td>
                                     <td className="px-3 py-2 text-right">{fmt(row.payment)}</td>
                                     <td className="px-3 py-2 text-right">{fmt(row.liability)}</td>
                                     <td className="px-3 py-2 text-right">{fmt(row.asset)}</td>
