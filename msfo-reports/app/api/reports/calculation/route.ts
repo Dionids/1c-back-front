@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
         const data = await getCalculation(body);
         return Response.json(data);
     } catch (error) {
-        return Response.json({ error: 'Ошибка формирования отчёта' }, { status: 500 });
+        console.error('calculation:', error);
+        return new Response(null, { status: 500 });
     }
 }

@@ -7,6 +7,8 @@ export async function POST(request: NextRequest) {
         const data = await getOSVRentalObjects(body);
         return Response.json(data);
     } catch (error) {
-        return Response.json({ error: 'Ошибка формирования отчёта' }, { status: 500 });
+        // Детали пишем только в лог сервера, клиенту — чистый 500 без подробностей
+        console.error('osv-objects:', error);
+        return new Response(null, { status: 500 });
     }
 }

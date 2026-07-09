@@ -52,6 +52,7 @@ export default function OSVAccountsPage() {
     const [rows, setRows] = useState<OsvAccountRow[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [searched, setSearched] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -70,6 +71,7 @@ export default function OSVAccountsPage() {
     async function handleSubmit() {
         setLoading(true);
         setError(null);
+        setSearched(false);
         try {
             const res = await fetch('/api/reports/osv-accounts', {
                 method: 'POST',
@@ -81,11 +83,11 @@ export default function OSVAccountsPage() {
                 }),
             });
             if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error ?? 'Ошибка сервера');
+                throw new Error('Не удалось сформировать отчёт. Попробуйте позже.');
             }
             const data = await res.json();
             setRows(data.rows ?? []);
+            setSearched(true);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Неизвестная ошибка');
             setRows([]);
@@ -133,6 +135,12 @@ export default function OSVAccountsPage() {
             {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
                     {error}
+                </div>
+            )}
+
+            {searched && !loading && !error && rows.length === 0 && (
+                <div className="bg-white rounded-lg border p-6 text-center text-gray-500 text-sm">
+                    Нет данных по выбранным параметрам.
                 </div>
             )}
 
