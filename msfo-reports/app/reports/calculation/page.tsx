@@ -96,7 +96,7 @@ export default function CalculationPage() {
                     />
                 </div>
                 <button onClick={handleSubmit} disabled={loading}
-                        className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+                    className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
                     {loading ? 'Загрузка...' : 'Сформировать'}
                 </button>
             </div>
@@ -111,6 +111,12 @@ export default function CalculationPage() {
                 <div className="bg-white rounded-lg border overflow-x-auto">
                     <table className="text-sm w-full">
                         <thead className="bg-gray-50 border-b">
+                            <tr>
+                                <th colSpan={7} className="px-3 py-2 text-center border-b">Объект аренды</th>
+                            </tr>
+                            <tr>
+                                <th colSpan={7} className="px-3 py-2 text-center border-b">Документ</th>
+                            </tr>
                             <tr>
                                 <th rowSpan={2} className="px-3 py-2 text-left border-r align-bottom">Период</th>
                                 <th colSpan={3} className="px-3 py-2 text-center border-r border-b">Обязательство</th>
@@ -158,8 +164,9 @@ export default function CalculationPage() {
                         </tbody>
                     </table>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }
 
