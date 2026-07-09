@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
+import ObjectSelect from '@/components/ObjectSelect';
 
 interface OsvObjectRow {
     rent_object: string;
@@ -15,8 +16,20 @@ interface OsvObjectRow {
     closing_liabilities: number | null;
 }
 
+const NUMERIC_FIELDS: (keyof OsvObjectRow)[] = [
+    'opening_assets',
+    'opening_liabilities',
+    'change_assets_debit',
+    'change_assets_credit',
+    'change_liabilities_debit',
+    'change_liabilities_credit',
+    'closing_assets',
+    'closing_liabilities',
+];
+
 export default function OSVObjectsPage() {
     const [objects, setObjects] = useState<string[]>([]);
+    const [objectsLoading, setObjectsLoading] = useState(true);
     const [dateFrom, setDateFrom] = useState(dayjs().startOf('year').format('YYYY-MM-DD'));
     const [dateTo, setDateTo] = useState(dayjs().format('YYYY-MM-DD'));
     const [selectedObject, setSelectedObject] = useState<string>('');
@@ -25,9 +38,17 @@ export default function OSVObjectsPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        let cancelled = false;
+        setObjectsLoading(true);
         fetch('/api/rental-objects')
             .then(r => r.json())
-            .then(setObjects);
+            .then((data: unknown) => {
+                if (cancelled) return;
+                setObjects(Array.isArray(data) ? (data as string[]) : []);
+            })
+            .catch(() => { if (!cancelled) setObjects([]); })
+            .finally(() => { if (!cancelled) setObjectsLoading(false); });
+        return () => { cancelled = true; };
     }, []);
 
     async function handleSubmit() {
@@ -57,6 +78,8 @@ export default function OSVObjectsPage() {
         }
     }
 
+    const totals = sumRows(rows);
+
     return (
         <div>
             <h1 className="text-xl font-bold text-gray-800 mb-4">ОСВ объектов аренды</h1>
@@ -72,13 +95,14 @@ export default function OSVObjectsPage() {
                     <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
                            className="border rounded px-3 py-2 text-sm" />
                 </div>
-                <div>
+                <div className="min-w-64">
                     <label className="block text-sm text-gray-600 mb-1">Объект аренды</label>
-                    <select value={selectedObject} onChange={e => setSelectedObject(e.target.value)}
-                            className="border rounded px-3 py-2 text-sm min-w-48">
-                        <option value="">Все объекты</option>
-                        {objects.map(obj => <option key={obj} value={obj}>{obj}</option>)}
-                    </select>
+                    <ObjectSelect
+                        objects={objects}
+                        loading={objectsLoading}
+                        value={selectedObject}
+                        onChange={setSelectedObject}
+                    />
                 </div>
                 <button onClick={handleSubmit} disabled={loading}
                         className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
@@ -97,13 +121,13 @@ export default function OSVObjectsPage() {
                     <table className="text-sm w-full">
                         <thead className="bg-gray-50 border-b">
                             <tr>
-                                <th rowSpan={2} className="px-3 py-2 text-left border-r">Объект аренды</th>
+                                <th rowSpan={2} className="px-3 py-2 text-left border-r align-bottom">Объект аренды</th>
                                 <th colSpan={2} className="px-3 py-2 text-center border-r border-b">Стоимость на начало</th>
                                 <th colSpan={4} className="px-3 py-2 text-center border-r border-b">Изменение за период</th>
                                 <th colSpan={2} className="px-3 py-2 text-center border-b">Стоимость на конец</th>
                             </tr>
                             <tr>
-                                <th className="px-3 py-2 text-right border-r">Активы</th>
+                                <th className="px-3 py-2 text-right">Активы</th>
                                 <th className="px-3 py-2 text-right border-r">Обязательства</th>
                                 <th className="px-3 py-2 text-right">Активы Дт</th>
                                 <th className="px-3 py-2 text-right">Активы Кт</th>
@@ -128,11 +152,35 @@ export default function OSVObjectsPage() {
                                 </tr>
                             ))}
                         </tbody>
+                        <tfoot className="bg-gray-100 border-t-2 font-semibold">
+                            <tr>
+                                <td className="px-3 py-2 border-r">Итого</td>
+                                <td className="px-3 py-2 text-right">{fmt(totals.opening_assets)}</td>
+                                <td className="px-3 py-2 text-right border-r">{fmt(totals.opening_liabilities)}</td>
+                                <td className="px-3 py-2 text-right">{fmt(totals.change_assets_debit)}</td>
+                                <td className="px-3 py-2 text-right">{fmt(totals.change_assets_credit)}</td>
+                                <td className="px-3 py-2 text-right">{fmt(totals.change_liabilities_debit)}</td>
+                                <td className="px-3 py-2 text-right border-r">{fmt(totals.change_liabilities_credit)}</td>
+                                <td className="px-3 py-2 text-right">{fmt(totals.closing_assets)}</td>
+                                <td className="px-3 py-2 text-right">{fmt(totals.closing_liabilities)}</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             )}
         </div>
     );
+}
+
+function sumRows(rows: OsvObjectRow[]): Record<string, number> {
+    const acc: Record<string, number> = {};
+    for (const f of NUMERIC_FIELDS) acc[f] = 0;
+    for (const row of rows) {
+        for (const f of NUMERIC_FIELDS) {
+            acc[f] += (row[f] as number | null) ?? 0;
+        }
+    }
+    return acc;
 }
 
 function fmt(value: number | null) {
